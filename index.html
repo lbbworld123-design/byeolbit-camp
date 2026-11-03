@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>별빛캠핑장</title>
+<style>
+  html,body{margin:0;height:100%;background:#05060f;overflow:hidden;font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#f3e9d2;-webkit-user-select:none;user-select:none;touch-action:none}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .top{position:fixed;top:14px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+  .brand{font-size:20px;font-weight:700;letter-spacing:2px;text-shadow:0 0 12px rgba(255,190,110,.5)}
+  .brand small{display:block;font-size:12px;font-weight:400;letter-spacing:0;opacity:.75;margin-top:4px}
+  .stat{font-size:12px;text-align:right;opacity:.8;line-height:1.6}
+  .bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:96vw}
+  .bar button{background:rgba(20,18,30,.65);color:#f3e9d2;border:1px solid rgba(255,200,140,.25);border-radius:22px;padding:10px 16px;font-size:14px;cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-family:inherit;white-space:nowrap}
+  .bar button.on{background:rgba(255,160,80,.28);border-color:rgba(255,190,120,.7)}
+  .bar button:active{transform:scale(.96)}
+  #toast{position:fixed;left:50%;top:22%;transform:translateX(-50%);font-size:15px;padding:10px 18px;border-radius:18px;background:rgba(10,10,20,.55);opacity:0;transition:opacity .6s;pointer-events:none;text-align:center;white-space:nowrap}
+  #wish{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,10,.35)}
+  #wish .box{background:rgba(16,18,36,.9);border:1px solid rgba(180,200,255,.3);border-radius:16px;padding:18px;width:min(320px,84vw);text-align:center}
+  #wish input{width:100%;box-sizing:border-box;margin:12px 0;padding:10px;border-radius:10px;border:1px solid rgba(180,200,255,.3);background:#0b0d1c;color:#f3e9d2;font-size:15px;font-family:inherit}
+  #wish button{background:#2b3266;color:#fff;border:0;border-radius:10px;padding:8px 18px;font-size:14px;font-family:inherit;cursor:pointer}
+  @media (max-width:520px){.bar{flex-wrap:nowrap;gap:5px;bottom:14px}.bar{width:max-content}.bar button{padding:8px 9px;font-size:12.5px}.hint{bottom:62px!important;font-size:11px!important}.stat{font-size:11px}}
+  .hint{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);font-size:12px;opacity:.65;text-align:center;pointer-events:none;white-space:nowrap}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="top">
+  <div class="brand">별빛캠핑장<small id="me"></small></div>
+  <div class="stat"><div id="tFire">불멍 0분 0초</div><div id="tMallow">먹은 마시멜로 0개</div><div id="tStar">본 별똥별 0개</div></div>
+</div>
+<div id="toast"></div>
+<div class="hint" id="hint">장작을 넣고 가만히 불을 바라보세요</div>
+<div class="bar">
+  <button id="bWood">🪵 장작 넣기</button>
+  <button id="bMallow">🍡 마시멜로</button>
+  <button id="bStar">✨ 별보기</button>
+  <button id="bSound">🔇 소리</button>
+</div>
+<div id="wish"><div class="box"><div>별똥별이 떨어졌어요. 소원을 빌어 보세요</div><input id="wishText" maxlength="40" placeholder="소원은 이 기기에만 남아요"><button id="wishOk">빌기</button></div></div>
+<script>
+(()=>{
+const cv=document.getElementById('c'),cx=cv.getContext('2d');
+let W,H,DPR,groundY,fireX,fireY;
+function resize(){DPR=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0);groundY=H*0.72;fireX=W*0.5;fireY=groundY+Math.min(40,H*0.05);makeStars();makeTrees()}
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const store=JSON.parse(localStorage.getItem('byeolbit')||'{}');
+store.fireSec=store.fireSec||0;store.mallows=store.mallows||0;store.shooting=store.shooting||0;store.wishes=store.wishes||[];
+const save=()=>localStorage.setItem('byeolbit',JSON.stringify(store));
+// 산사처럼 들어오면 이름 하나를 받는다
+const A=['졸린','따뜻한','반짝이는','느긋한','조용한','포근한','말랑한','고요한'],B=['반딧불','장작','텐트','마시멜로','부엉이','솔방울','별빛','모닥불'];
+if(!store.name)store.name=A[Math.random()*A.length|0]+' '+B[Math.random()*B.length|0];
+document.getElementById('me').textContent=store.name+' 님, 어서 오세요';
+save();
+
+// ---------- 별 ----------
+let stars=[],trees=[],cons=[];
+function makeStars(){stars=[];const n=Math.round(W*H/2600);for(let i=0;i<n;i++)stars.push({x:Math.random()*W,y:Math.pow(Math.random(),1.4)*groundY*0.98,r:Math.random()<.06?rnd(1.2,1.9):rnd(.3,1.1),p:Math.random()*6.28,s:rnd(.4,1.6)});
+  // 11월 저녁 하늘: 카시오페아(W)·북두칠성·페가수스 사각형(대략 모양)
+  const k=Math.min(W,H)/900, top=W<520?90:0;
+  cons=[
+    {name:'카시오페아',ox:W*0.22,oy:groundY*0.22+top,pts:[[0,0],[40,30],[75,5],[110,35],[150,10]],lines:[[0,1],[1,2],[2,3],[3,4]]},
+    {name:'북두칠성',ox:W*0.62,oy:groundY*0.55+top*0.4,pts:[[0,0],[45,8],[85,20],[118,40],[130,85],[190,95],[200,45]],lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,3]]},
+    {name:'페가수스 사각형',ox:W*(W<520?0.55:0.66),oy:groundY*0.14+top,pts:[[0,0],[110,-8],[118,95],[6,100]],lines:[[0,1],[1,2],[2,3],[3,0]]}
+  ].map(c=>({...c,pts:c.pts.map(([x,y])=>[c.ox+x*k*1.4,c.oy+y*k*1.4])}));
+}
+function makeTrees(){trees=[];let x=-30;while(x<W+40){const h=rnd(H*0.16,H*0.32);trees.push({x,h,w:h*rnd(.32,.42)});x+=rnd(28,60)}}
+
+// ---------- 불 ----------
+let heat=0.55,flames=[],embers=[],flare=0;
+function addWood(){heat=Math.min(1.25,heat+0.35);flare=1;for(let i=0;i<40;i++)embers.push(newEmber(true));crackle(6);toast('타닥… 불이 살아나요')}
+function newFlame(){const sp=20+heat*16;return{x:fireX+rnd(-sp,sp),y:fireY-4,vx:rnd(-.25,.25),vy:-rnd(1.1,2.1)*(0.6+heat*0.6),life:1,dec:rnd(.012,.024),r:rnd(9,18)*(0.6+heat*0.5)}}
+function newEmber(burst){return{x:fireX+rnd(-20,20),y:fireY-10,vx:rnd(-.6,.6)*(burst?2:1),vy:-rnd(.8,2.6)*(burst?1.6:1),life:1,dec:rnd(.004,.01)}}
+function drawFire(dt){
+  heat=Math.max(0.12,heat-dt*0.012); flare=Math.max(0,flare-dt*0.8);
+  const n=Math.max(1,Math.round((2+heat*4)*dt*60));for(let i=0;i<n;i++)flames.push(newFlame());
+  if(Math.random()<heat*0.35)embers.push(newEmber(false));
+  // 바닥 빛
+  const gr=cx.createRadialGradient(fireX,fireY,4,fireX,fireY,260+heat*220);
+  gr.addColorStop(0,`rgba(255,150,60,${0.28+heat*0.22+flare*0.15})`);gr.addColorStop(1,'rgba(255,120,40,0)');
+  cx.fillStyle=gr;cx.fillRect(0,0,W,H);
+  // 돌과 장작
+  cx.fillStyle='#2a1a12';for(let i=0;i<3;i++){cx.save();cx.translate(fireX,fireY+6);cx.rotate((i-1)*0.5);cx.fillRect(-46,-5,92,10);cx.restore()}
+  for(let i=0;i<9;i++){const a=i/9*Math.PI*2;cx.fillStyle=`rgb(${60+i*3},${58+i*2},${66})`;cx.beginPath();cx.ellipse(fireX+Math.cos(a)*58,fireY+12+Math.sin(a)*12,13,8,0,0,7);cx.fill()}
+  cx.globalCompositeOperation='lighter';
+  flames=flames.filter(f=>{f.x+=f.vx+Math.sin(f.y*0.05+t*3)*0.3;f.y+=f.vy*dt*60;f.life-=f.dec*dt*60;if(f.life<=0)return false;
+    const r=f.r*(0.4+f.life*0.8),g=cx.createRadialGradient(f.x,f.y,0,f.x,f.y,r);
+    const c=f.life>0.7?'255,240,190':f.life>0.4?'255,170,60':'220,70,20';
+    g.addColorStop(0,`rgba(${c},${0.22*f.life})`);g.addColorStop(1,`rgba(${c},0)`);cx.fillStyle=g;cx.beginPath();cx.arc(f.x,f.y,r,0,7);cx.fill();return true});
+  embers=embers.filter(e=>{e.x+=e.vx+Math.sin(t*2+e.y*0.02)*0.4;e.y+=e.vy*dt*60;e.vy*=0.995;e.life-=e.dec*dt*60;if(e.life<=0||e.y<0)return false;
+    cx.fillStyle=`rgba(255,${150+e.life*80|0},80,${e.life})`;cx.fillRect(e.x,e.y,1.8,1.8);return true});
+  cx.globalCompositeOperation='source-over';
+}
+
+// ---------- 마시멜로 ----------
+const mallow={on:false,hold:false,pos:0,toast:0,burnt:false,fire:0};
+const LV=[[0,'하얀 마시멜로',[250,246,236]],[0.25,'살짝 노릇',[238,214,160]],[0.5,'황금빛 ✨',[214,160,70]],[0.75,'진한 갈색',[140,84,40]],[0.95,'탔어요…',[40,28,22]]];
+function mallowLevel(){let l=LV[0];for(const v of LV)if(mallow.toast>=v[0])l=v;return l}
+function drawMallow(dt){
+  if(!mallow.on)return;
+  mallow.pos+=((mallow.hold?1:0)-mallow.pos)*Math.min(1,dt*5);
+  if(mallow.hold&&!mallow.burnt){mallow.toast+=dt*(0.05+heat*0.07);if(mallow.toast>=0.95){mallow.burnt=true;mallow.fire=2.5;toast('앗, 불이 붙었어요! 손을 떼서 꺼 주세요')}}
+  if(mallow.fire>0&&!mallow.hold)mallow.fire-=dt*2;
+  const hx=W*0.86,hy=H*0.92,tx=fireX+50-mallow.pos*40,ty=fireY-70-(1-mallow.pos)*80+Math.sin(t*1.3)*2;
+  cx.strokeStyle='#8a6a48';cx.lineWidth=3;cx.beginPath();cx.moveTo(hx,hy);cx.lineTo(tx+14,ty);cx.stroke();
+  const [,,c]=mallowLevel();cx.fillStyle=`rgb(${c})`;cx.beginPath();cx.roundRect?cx.roundRect(tx-14,ty-11,28,22,7):cx.rect(tx-14,ty-11,28,22);cx.fill();
+  if(mallow.toast>0.25&&!mallow.burnt){cx.fillStyle='rgba(255,220,150,.35)';cx.fillRect(tx-12,ty-9,8,5)}
+  if(mallow.fire>0){cx.globalCompositeOperation='lighter';const g=cx.createRadialGradient(tx,ty-10,0,tx,ty-10,26);g.addColorStop(0,'rgba(255,200,90,.9)');g.addColorStop(1,'rgba(255,90,20,0)');cx.fillStyle=g;cx.beginPath();cx.arc(tx,ty-10+Math.sin(t*20)*2,26,0,7);cx.fill();cx.globalCompositeOperation='source-over'}
+  cx.fillStyle='rgba(243,233,210,.9)';cx.font='13px sans-serif';cx.textAlign='center';cx.fillText(mallowLevel()[1],tx,ty-24);
+}
+function eatMallow(){
+  const l=mallowLevel()[1];store.mallows++;save();
+  toast(mallow.burnt?'바삭… 쓴맛도 추억이에요':mallow.toast>=0.5&&mallow.toast<0.75?'황금빛 마시멜로! 완벽해요':'냠, 달콤해요');
+  Object.assign(mallow,{toast:0,burnt:false,fire:0});
+}
+
+// ---------- 별똥별 ----------
+let shoots=[],skyMode=false,skyT=0;
+function spawnShoot(){const x=rnd(W*0.1,W*0.9),y=rnd(0,groundY*0.4);shoots.push({x,y,vx:rnd(5,9)*(Math.random()<.5?-1:1),vy:rnd(2,4),life:1,hit:false})}
+function drawSky(dt){
+  skyT+=((skyMode?1:0)-skyT)*Math.min(1,dt*1.5);
+  const g=cx.createLinearGradient(0,0,0,groundY);g.addColorStop(0,'#03040c');g.addColorStop(0.6,'#0b1030');g.addColorStop(1,'#1d1a33');cx.fillStyle=g;cx.fillRect(0,0,W,H);
+  // 은하수 띠
+  cx.save();cx.globalAlpha=0.10+skyT*0.18;cx.translate(W*0.5,groundY*0.4);cx.rotate(-0.5);const mg=cx.createLinearGradient(0,-90,0,90);mg.addColorStop(0,'rgba(160,170,255,0)');mg.addColorStop(.5,'rgba(200,205,255,1)');mg.addColorStop(1,'rgba(160,170,255,0)');cx.fillStyle=mg;cx.fillRect(-W,-90,W*2,180);cx.restore();
+  const dim=1-(heat*0.25)*(1-skyT);
+  for(const s of stars){const a=(0.5+0.5*Math.sin(t*s.s+s.p))*dim;cx.fillStyle=`rgba(255,250,235,${0.25+a*0.75})`;cx.beginPath();cx.arc(s.x,s.y,s.r*(1+skyT*0.3),0,7);cx.fill()}
+  if(skyT>0.05){cx.strokeStyle=`rgba(170,200,255,${0.45*skyT})`;cx.lineWidth=1;
+    for(const c of cons){cx.beginPath();for(const [a,b] of c.lines){cx.moveTo(...c.pts[a]);cx.lineTo(...c.pts[b])}cx.stroke();
+      cx.fillStyle=`rgba(255,255,255,${skyT})`;for(const p of c.pts){cx.beginPath();cx.arc(p[0],p[1],2.2,0,7);cx.fill()}
+      cx.fillStyle=`rgba(190,210,255,${0.8*skyT})`;cx.font='12px sans-serif';cx.textAlign='left';cx.fillText(c.name,c.pts[0][0]+6,c.pts[0][1]-10)}}
+  if(Math.random()<dt*(skyMode?0.35:0.05))spawnShoot();
+  shoots=shoots.filter(s=>{s.x+=s.vx*dt*60;s.y+=s.vy*dt*60;s.life-=dt*0.9;if(s.life<=0)return false;
+    const g=cx.createLinearGradient(s.x,s.y,s.x-s.vx*12,s.y-s.vy*12);g.addColorStop(0,`rgba(255,255,255,${s.life})`);g.addColorStop(1,'rgba(255,255,255,0)');
+    cx.strokeStyle=g;cx.lineWidth=2;cx.beginPath();cx.moveTo(s.x,s.y);cx.lineTo(s.x-s.vx*12,s.y-s.vy*12);cx.stroke();return true});
+}
+function drawGround(){
+  for(const tr of trees){cx.fillStyle='#070912';cx.beginPath();cx.moveTo(tr.x,groundY+4);cx.lineTo(tr.x+tr.w/2,groundY-tr.h);cx.lineTo(tr.x+tr.w,groundY+4);cx.fill()}
+  const g=cx.createLinearGradient(0,groundY,0,H);g.addColorStop(0,'#0d0c14');g.addColorStop(1,'#050408');cx.fillStyle=g;cx.fillRect(0,groundY,W,H-groundY);
+  // 텐트
+  const tx=W*0.2,tw=Math.min(170,W*0.3),th=tw*0.75;cx.fillStyle=`rgb(${40+heat*30|0},${32+heat*16|0},${36})`;cx.beginPath();cx.moveTo(tx-tw/2,groundY+30);cx.lineTo(tx,groundY+30-th);cx.lineTo(tx+tw/2,groundY+30);cx.fill();
+  cx.fillStyle='rgba(255,190,110,.25)';cx.beginPath();cx.moveTo(tx-tw*0.14,groundY+30);cx.lineTo(tx,groundY+30-th*0.55);cx.lineTo(tx+tw*0.14,groundY+30);cx.fill();
+  // 의자에 앉은 나
+  const px=W*0.73,py=groundY+50;cx.fillStyle='#120f16';cx.beginPath();cx.arc(px,py-52,13,0,7);cx.fill();cx.fillRect(px-14,py-40,28,36);cx.fillRect(px-22,py-6,44,6);
+}
+
+// ---------- 소리(내장 합성, 외부 파일 없음) ----------
+let ac=null,soundOn=false,master,noiseBuf;
+function initAudio(){ac=new (window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=0;master.connect(ac.destination);
+  noiseBuf=ac.createBuffer(1,ac.sampleRate*2,ac.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  const n=ac.createBufferSource();n.buffer=noiseBuf;n.loop=true;const lp=ac.createBiquadFilter();lp.type='lowpass';lp.frequency.value=420;const ng=ac.createGain();ng.gain.value=0.16;n.connect(lp).connect(ng).connect(master);n.start();
+  setInterval(()=>{if(soundOn&&Math.random()<0.3+heat*0.5)crackle(1)},140);
+  setInterval(()=>{if(soundOn&&Math.random()<0.5)cricket()},1400);
+}
+function crackle(k){if(!ac||!soundOn)return;for(let i=0;i<k;i++){const s=ac.createBufferSource();s.buffer=noiseBuf;const hp=ac.createBiquadFilter();hp.type='bandpass';hp.frequency.value=rnd(1500,4500);const g=ac.createGain();const t0=ac.currentTime+i*rnd(0.02,0.09);g.gain.setValueAtTime(rnd(.2,.6),t0);g.gain.exponentialRampToValueAtTime(0.001,t0+rnd(.02,.06));s.connect(hp).connect(g).connect(master);s.start(t0,Math.random(),0.08)}}
+function cricket(){const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=rnd(4200,4800);o.connect(g).connect(master);const t0=ac.currentTime;g.gain.value=0;for(let i=0;i<3;i++){g.gain.setValueAtTime(0.018,t0+i*0.07);g.gain.setValueAtTime(0,t0+i*0.07+0.04)}o.start(t0);o.stop(t0+0.25)}
+
+// ---------- 화면 조작 ----------
+const $=id=>document.getElementById(id);
+let toastTimer;function toast(m){const e=$('toast');e.textContent=m;e.style.opacity=1;clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.style.opacity=0,2200)}
+$('bWood').onclick=addWood;
+$('bMallow').onclick=()=>{mallow.on=!mallow.on;$('bMallow').classList.toggle('on',mallow.on);$('hint').textContent=mallow.on?'화면을 누르고 있으면 불 가까이 굽고, 떼면 빼요 · 두 번 톡 치면 먹기':'장작을 넣고 가만히 불을 바라보세요'};
+$('bStar').onclick=()=>{skyMode=!skyMode;$('bStar').classList.toggle('on',skyMode);$('hint').textContent=skyMode?'별똥별이 지나가면 눌러서 소원을 빌어 보세요':'장작을 넣고 가만히 불을 바라보세요';if(skyMode)toast('11월 저녁 하늘 — 카시오페아·페가수스·북두칠성')};
+$('bSound').onclick=()=>{if(!ac)initAudio();soundOn=!soundOn;ac.resume();master.gain.setTargetAtTime(soundOn?0.8:0,ac.currentTime,0.3);$('bSound').textContent=soundOn?'🔊 소리':'🔇 소리';$('bSound').classList.toggle('on',soundOn)};
+let lastTap=0;
+cv.addEventListener('pointerdown',e=>{
+  if(skyMode){for(const s of shoots){if(!s.hit&&Math.hypot(e.clientX-s.x,e.clientY-s.y)<70){s.hit=true;store.shooting++;save();$('wish').style.display='flex';$('wishText').value='';setTimeout(()=>$('wishText').focus(),50);return}}}
+  if(mallow.on){const now=Date.now();if(now-lastTap<300){eatMallow();mallow.hold=false;lastTap=0;return}lastTap=now;mallow.hold=true}
+});
+addEventListener('pointerup',()=>mallow.hold=false);
+$('wishOk').onclick=()=>{const v=$('wishText').value.trim();if(v){store.wishes.push({w:v,d:new Date().toISOString().slice(0,10)});save()}$('wish').style.display='none';toast(v?'소원이 별에 닿았어요 ✨':'마음속으로 빌었어요')};
+
+// ---------- 루프 ----------
+let t=0,last=performance.now();
+function loop(now){const dt=Math.min(0.05,(now-last)/1000);last=now;t+=dt;store.fireSec+=dt;
+  cx.clearRect(0,0,W,H);drawSky(dt);drawGround();drawFire(dt);drawMallow(dt);
+  if((t|0)%2===0){const s=store.fireSec|0;$('tFire').textContent=`불멍 ${s/60|0}분 ${s%60}초`;$('tMallow').textContent=`먹은 마시멜로 ${store.mallows}개`;$('tStar').textContent=`본 별똥별 ${store.shooting}개`}
+  requestAnimationFrame(loop)}
+setInterval(save,5000);
+addEventListener('resize',resize);resize();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
