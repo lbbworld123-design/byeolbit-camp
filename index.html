@@ -106,55 +106,80 @@ function col(c,k=1){return `rgb(${c[0]*k|0},${c[1]*k|0},${c[2]*k|0})`}
 function drawMe(dt){
   const K=KINDS[store.kind],hat=HATS[store.hat];
   me.s=Math.max(0.8,Math.min(1.25,W/900+0.45));const s=me.s;
-  me.x=fireX+Math.min(150,W*0.26);me.y=groundY+44;
+  // 불에서 한 걸음 물러나 앉는다(BB님 11/3: 너무 가까워 탈 것 같다)
+  me.x=Math.min(fireX+Math.min(215,W*0.36),W-34*s);me.y=groundY+44;
   for(const k of['warm','eat','wave','surprise','sayT'])me[k]=Math.max(0,me[k]-dt);
   me.blink-=dt;if(me.blink<-3.2)me.blink=0.12;
-  const x=me.x,y=me.y,sway=Math.sin(t*1.2)*1.5*s,look=skyT; // look: 0=불, 1=하늘
+  const x=me.x,y=me.y,sway=Math.sin(t*1.2)*1.2*s,look=skyT; // look: 0=불, 1=하늘
   const lit=0.55+heat*0.35; // 불빛을 받는 정도
   cx.save();cx.translate(x,y);cx.scale(s,s);
-  // 통나무 의자
-  cx.fillStyle='#3a2618';cx.beginPath();cx.ellipse(0,8,38,11,0,0,7);cx.fill();cx.fillStyle='#5a3b24';cx.beginPath();cx.ellipse(-36,8,6,10,0,0,7);cx.fill();
-  // 그림자 쪽(오른쪽)은 어둡게, 불 쪽(왼쪽)은 밝게
-  cx.translate(sway,0);
-  // 몸통 + 담요
-  cx.fillStyle=col(K.fur,lit);cx.beginPath();cx.ellipse(0,-22,26,28,0,0,7);cx.fill();
-  cx.fillStyle=col(hat,lit*0.85);cx.beginPath();cx.moveTo(-27,-30);cx.quadraticCurveTo(0,-44,27,-30);cx.lineTo(29,2);cx.quadraticCurveTo(0,10,-29,2);cx.closePath();cx.fill();
-  cx.strokeStyle=`rgba(255,255,255,${0.25*lit})`;cx.lineWidth=2;for(let i=-18;i<=18;i+=12){cx.beginPath();cx.moveTo(i,-34);cx.lineTo(i,4);cx.stroke()}
-  // 팔(불 쪽으로): 굽기 중이면 막대를 잡고, 장작 넣은 뒤엔 손을 쬔다, 인사면 흔든다
-  const armA=me.wave>0?-2.2+Math.sin(t*14)*0.4:mallow.on?-0.45:(me.warm>0||heat>0.9)?-0.15:0.5;
-  cx.save();cx.translate(-20,-28);cx.rotate(armA);cx.fillStyle=col(K.fur,lit);cx.beginPath();cx.ellipse(-14,0,15,7,0,0,7);cx.fill();cx.fillStyle=col(K.in,lit);cx.beginPath();cx.arc(-28,0,6,0,7);cx.fill();cx.restore();
-  me.hand=[x+sway*s+(-20+Math.cos(Math.PI+armA)*28)*s, y+(-28+Math.sin(Math.PI+armA)*28)*s];
-  // 머리
-  const hy=-62-look*4, tilt=-0.12-look*0.25+(me.eat>0?Math.sin(t*16)*0.05:0);
-  cx.save();cx.translate(0,hy);cx.rotate(tilt);
-  // 귀
+  // 그림자
+  cx.fillStyle='rgba(0,0,0,.35)';cx.beginPath();cx.ellipse(-4,19,30,5,0,0,7);cx.fill();
+  // 등받이 없는 작은 나무 의자(다리 셋 + 둥근 앉음판)
+  const wood=col([120,82,50],lit),woodD=col([78,52,32],lit);
+  cx.strokeStyle=woodD;cx.lineWidth=4;cx.lineCap='round';
+  for(const [x0,x1] of[[-11,-16],[11,16],[0,1]]){cx.beginPath();cx.moveTo(x0,0);cx.lineTo(x1,18);cx.stroke()}
+  cx.lineWidth=2.5;cx.beginPath();cx.moveTo(-13,10);cx.lineTo(13,10);cx.stroke(); // 가로대
+  cx.fillStyle=woodD;cx.beginPath();cx.ellipse(0,1,19,5,0,0,7);cx.fill();
+  cx.fillStyle=wood;cx.beginPath();cx.ellipse(0,-1,19,5,0,0,7);cx.fill();
+  cx.strokeStyle=`rgba(40,24,14,${0.5*lit})`;cx.lineWidth=1;cx.beginPath();cx.ellipse(0,-1,11,2.6,0,0,7);cx.stroke(); // 나뭇결
+  cx.lineCap='butt';
+  cx.translate(sway,-6);
+  // 다리: 무릎이 불 쪽(왼쪽)으로, 발은 땅에
+  cx.fillStyle=col(K.fur,lit*0.9);
+  for(const dx of[0,7]){cx.save();cx.translate(-4+dx,0);
+    cx.beginPath();cx.ellipse(-12,-1,13,7,0.05,0,7);cx.fill();           // 허벅지
+    cx.beginPath();cx.ellipse(-24,10,6,11,0.12,0,7);cx.fill();           // 정강이
+    cx.fillStyle=col(K.in,lit*0.9);cx.beginPath();cx.ellipse(-28,21,8,4,0,0,7);cx.fill(); // 발(앞=왼쪽)
+    cx.fillStyle=col(K.fur,lit*0.9);cx.restore()}
+  // 몸통 + 담요(앉은 자세라 앞으로 살짝 기운다)
+  cx.save();cx.rotate(-0.06);
+  cx.fillStyle=col(K.fur,lit);cx.beginPath();cx.ellipse(0,-24,24,26,0,0,7);cx.fill();
+  cx.fillStyle=col(hat,lit*0.85);cx.beginPath();cx.moveTo(-25,-32);cx.quadraticCurveTo(0,-46,26,-32);cx.lineTo(27,-2);cx.quadraticCurveTo(0,6,-27,-2);cx.closePath();cx.fill();
+  cx.strokeStyle=`rgba(255,255,255,${0.25*lit})`;cx.lineWidth=2;for(let i=-16;i<=16;i+=12){cx.beginPath();cx.moveTo(i,-36);cx.lineTo(i,0);cx.stroke()}
+  // 불 반대쪽(오른쪽)은 그늘
+  cx.fillStyle='rgba(0,0,0,.18)';cx.beginPath();cx.ellipse(10,-22,16,25,0,-Math.PI/2,Math.PI/2);cx.fill();
+  cx.restore();
+  // 앞팔(불 쪽으로): 굽기 중이면 막대를 잡고, 장작 넣은 뒤엔 손을 쬔다, 인사면 흔든다
+  const armA=me.wave>0?-2.2+Math.sin(t*14)*0.4:mallow.on?-0.45:(me.warm>0||heat>0.9)?-0.2:0.45;
+  cx.save();cx.translate(-14,-30);cx.rotate(armA);cx.fillStyle=col(K.fur,lit);cx.beginPath();cx.ellipse(-15,0,16,7,0,0,7);cx.fill();cx.fillStyle=col(K.in,lit);cx.beginPath();cx.arc(-30,0,6,0,7);cx.fill();cx.restore();
+  me.hand=[x+sway*s+(-14+Math.cos(Math.PI+armA)*30)*s, y+(-6-30+Math.sin(Math.PI+armA)*30)*s];
+  // 머리: 4분의 3 옆모습으로 불(왼쪽)을 본다. 별보기 땐 고개를 들어 하늘을 본다
+  const hy=-66-look*3, tilt=-0.05+look*0.38+(me.eat>0?Math.sin(t*16)*0.05:0);
+  cx.save();cx.translate(-2,hy);cx.rotate(tilt);
+  // 귀(머리 뒤쪽으로 치우침)
   cx.fillStyle=col(K.fur,lit);
-  if(K.k==='bear'){for(const ex of[-17,17]){cx.beginPath();cx.arc(ex,-20,8,0,7);cx.fill()}}
-  if(K.k==='rabbit'){for(const ex of[-9,9]){cx.save();cx.translate(ex,-26);cx.rotate(ex*0.02);cx.beginPath();cx.ellipse(0,-14,6,18,0,0,7);cx.fill();cx.fillStyle=col(K.in,lit);cx.beginPath();cx.ellipse(0,-14,3,12,0,0,7);cx.fill();cx.fillStyle=col(K.fur,lit);cx.restore()}}
-  if(K.k==='fox'){for(const sx of[-1,1]){cx.beginPath();cx.moveTo(sx*8,-22);cx.lineTo(sx*20,-40);cx.lineTo(sx*24,-14);cx.fill()}}
-  cx.beginPath();cx.ellipse(0,0,25,23,0,0,7);cx.fill();
-  // 털모자(곰·여우만, 토끼는 귀 때문에 귀마개 대신 목도리)
-  if(K.k!=='rabbit'){cx.fillStyle=col(hat,lit);cx.beginPath();cx.ellipse(0,-12,25,14,0,Math.PI,0);cx.fill();cx.fillRect(-25,-13,50,6);cx.fillStyle=col([250,250,245],lit);cx.beginPath();cx.arc(0,-28,6,0,7);cx.fill()}
-  // 얼굴: 주둥이·눈·볼
-  cx.fillStyle=col(K.in,lit);cx.beginPath();cx.ellipse(-4,8,11,8,0,0,7);cx.fill();
-  cx.fillStyle='#2a1c18';cx.beginPath();cx.arc(-5,5,2.6,0,7);cx.fill();
-  const ey=-1-look*3, ex0=-12-(1-look)*2;
+  if(K.k==='bear'){for(const [ex,ey] of[[-6,-21],[15,-17]]){cx.beginPath();cx.arc(ex,ey,8,0,7);cx.fill()}}
+  if(K.k==='rabbit'){for(const ex of[-2,10]){cx.save();cx.translate(ex,-24);cx.rotate(0.22+ex*0.01);cx.beginPath();cx.ellipse(0,-14,6,18,0,0,7);cx.fill();cx.fillStyle=col(K.in,lit);cx.beginPath();cx.ellipse(0,-14,3,12,0,0,7);cx.fill();cx.fillStyle=col(K.fur,lit);cx.restore()}}
+  if(K.k==='fox'){for(const [bx,tx2] of[[-4,-8],[12,16]]){cx.beginPath();cx.moveTo(bx-8,-18);cx.lineTo(tx2,-40);cx.lineTo(bx+10,-16);cx.fill()}}
+  cx.beginPath();cx.ellipse(0,0,24,23,0,0,7);cx.fill();
+  // 머리 뒤쪽(오른쪽) 그늘
+  cx.fillStyle='rgba(0,0,0,.14)';cx.beginPath();cx.ellipse(6,0,18,22,0,-Math.PI/2,Math.PI/2);cx.fill();
+  // 털모자(곰·여우만, 토끼는 귀 때문에 목도리) — 방울은 뒤통수 쪽
+  if(K.k!=='rabbit'){cx.fillStyle=col(hat,lit);cx.beginPath();cx.ellipse(1,-11,25,14,0,Math.PI,0);cx.fill();cx.fillRect(-24,-12,50,6);cx.fillStyle=col([250,250,245],lit);cx.beginPath();cx.arc(10,-26,6,0,7);cx.fill()}
+  // 얼굴: 주둥이가 왼쪽으로 나온다
+  const MZ=K.k==='fox'?[-22,8,13,7]:[-18,8,11,8];
+  cx.fillStyle=col(K.in,lit);cx.beginPath();cx.ellipse(MZ[0],MZ[1],MZ[2],MZ[3],K.k==='fox'?0.12:0,0,7);cx.fill();
+  cx.fillStyle='#2a1c18';cx.beginPath();cx.arc(MZ[0]-MZ[2]+3,MZ[1]-3,2.6,0,7);cx.fill(); // 코끝
+  // 눈: 가까운 눈(크게)과 먼 눈(작게) 모두 왼쪽
+  const ey=-2-look*3, EYES=[[-7,1],[-19,0.75]];
   cx.strokeStyle='#1d1412';cx.fillStyle='#1d1412';cx.lineWidth=2;
-  if(me.eat>0||me.wave>0){for(const ex of[ex0,ex0+15]){cx.beginPath();cx.arc(ex,ey+1,3.5,Math.PI*1.1,Math.PI*1.9);cx.stroke()}} // 웃는 눈 ^^
-  else if(me.surprise>0){for(const ex of[ex0,ex0+15]){cx.beginPath();cx.arc(ex,ey,3.6,0,7);cx.fill()}}
-  else if(me.blink>0){for(const ex of[ex0,ex0+15]){cx.beginPath();cx.moveTo(ex-3,ey);cx.lineTo(ex+3,ey);cx.stroke()}}
-  else{for(const ex of[ex0,ex0+15]){cx.beginPath();cx.arc(ex,ey,2.6,0,7);cx.fill();cx.fillStyle='#fff';cx.beginPath();cx.arc(ex+0.8,ey-0.9,0.9,0,7);cx.fill();cx.fillStyle='#1d1412'}}
+  for(const [ex,k] of EYES){
+    if(me.eat>0||me.wave>0){cx.beginPath();cx.arc(ex,ey+1,3.4*k,Math.PI*1.1,Math.PI*1.9);cx.stroke()} // 웃는 눈 ^^
+    else if(me.surprise>0){cx.beginPath();cx.arc(ex,ey,3.5*k,0,7);cx.fill()}
+    else if(me.blink>0){cx.beginPath();cx.moveTo(ex-3*k,ey);cx.lineTo(ex+3*k,ey);cx.stroke()}
+    else{cx.beginPath();cx.ellipse(ex,ey,2.4*k,2.7*k,0,0,7);cx.fill();cx.fillStyle='#fff';cx.beginPath();cx.arc(ex-0.8*k,ey-0.9,0.9*k,0,7);cx.fill();cx.fillStyle='#1d1412'}}
   // 입
-  cx.beginPath();if(me.surprise>0){cx.arc(-4,13,3,0,7);cx.stroke()}else if(me.eat>0){cx.arc(-4,12,3+Math.abs(Math.sin(t*16))*2,0,Math.PI);cx.stroke()}else{cx.arc(-4,11,3,0.1*Math.PI,0.9*Math.PI);cx.stroke()}
-  // 볼(불 앞이라 발그레)
-  cx.fillStyle=`rgba(255,120,110,${0.25+heat*0.25})`;for(const bx of[-17,10]){cx.beginPath();cx.ellipse(bx,6,4.5,3,0,0,7);cx.fill()}
+  const mx=MZ[0]-2;cx.beginPath();if(me.surprise>0){cx.arc(mx,13,3,0,7);cx.stroke()}else if(me.eat>0){cx.arc(mx,12,3+Math.abs(Math.sin(t*16))*2,0,Math.PI);cx.stroke()}else{cx.arc(mx,11,3,0.1*Math.PI,0.9*Math.PI);cx.stroke()}
+  // 볼(불 앞이라 발그레) — 불 쪽 볼 하나
+  cx.fillStyle=`rgba(255,120,110,${0.25+heat*0.25})`;cx.beginPath();cx.ellipse(-4,7,5,3.2,0,0,7);cx.fill();
   cx.restore();
   // 목도리(토끼)
-  if(K.k==='rabbit'){cx.fillStyle=col(hat,lit);cx.fillRect(-20,-44,40,8);cx.fillRect(8,-40,8,16)}
+  if(K.k==='rabbit'){cx.fillStyle=col(hat,lit);cx.fillRect(-20,-48,40,8);cx.fillRect(10,-44,8,16)}
   cx.restore();
   // 이름표·말풍선
-  cx.fillStyle='rgba(243,233,210,.75)';cx.font='12px sans-serif';cx.textAlign='center';cx.fillText(K.n,x,y+30*s);
-  if(me.sayT>0){const a=Math.min(1,me.sayT*2);cx.font='13px sans-serif';const w=cx.measureText(me.say).width+20,bx=Math.min(W-w/2-6,Math.max(w/2+6,x)),by=y-118*s;
+  cx.fillStyle='rgba(243,233,210,.75)';cx.font='12px sans-serif';cx.textAlign='center';cx.fillText(K.n,x,y+34*s);
+  if(me.sayT>0){const a=Math.min(1,me.sayT*2);cx.font='13px sans-serif';const w=cx.measureText(me.say).width+20,bx=Math.min(W-w/2-6,Math.max(w/2+6,x)),by=y-124*s;
     cx.fillStyle=`rgba(250,244,230,${0.92*a})`;cx.beginPath();cx.roundRect?cx.roundRect(bx-w/2,by-14,w,28,12):cx.rect(bx-w/2,by-14,w,28);cx.fill();
     cx.beginPath();cx.moveTo(x-6,by+13);cx.lineTo(x,by+22);cx.lineTo(x+6,by+13);cx.fill();
     cx.fillStyle=`rgba(40,30,30,${a})`;cx.fillText(me.say,bx,by+5)}
