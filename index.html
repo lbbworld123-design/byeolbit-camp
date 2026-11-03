@@ -194,8 +194,9 @@ function drawMallow(dt){
   mallow.pos+=((mallow.hold?1:0)-mallow.pos)*Math.min(1,dt*5);
   if(mallow.hold&&!mallow.burnt){mallow.toast+=dt*(0.05+heat*0.07);if(mallow.toast>=0.95){mallow.burnt=true;mallow.fire=2.5;me.surprise=2;toast('앗, 불이 붙었어요! 손을 떼서 꺼 주세요')}}
   if(mallow.fire>0&&!mallow.hold)mallow.fire-=dt*2;
-  const [hx,hy]=me.hand||[W*0.86,H*0.92],tx=fireX+50-mallow.pos*40,ty=fireY-70-(1-mallow.pos)*80+Math.sin(t*1.3)*2;
-  cx.strokeStyle='#8a6a48';cx.lineWidth=3;cx.beginPath();cx.moveTo(hx,hy);cx.lineTo(tx+14,ty);cx.stroke();
+  // 짧은 막대(BB님 11/3): 손에서 일정 길이만 뻗는다. 누르고 있으면 끝을 불 쪽으로 내린다
+  const [hx,hy]=me.hand||[W*0.86,H*0.92],SL=80*me.s,sa=-2.05-mallow.pos*0.8+Math.sin(t*1.3)*0.02,tx=hx+Math.cos(sa)*SL,ty=hy+Math.sin(sa)*SL;
+  cx.strokeStyle='#8a6a48';cx.lineWidth=3;cx.beginPath();cx.moveTo(hx,hy);cx.lineTo(tx,ty);cx.stroke();
   const [,,c]=mallowLevel();cx.fillStyle=`rgb(${c})`;cx.beginPath();cx.roundRect?cx.roundRect(tx-14,ty-11,28,22,7):cx.rect(tx-14,ty-11,28,22);cx.fill();
   if(mallow.toast>0.25&&!mallow.burnt){cx.fillStyle='rgba(255,220,150,.35)';cx.fillRect(tx-12,ty-9,8,5)}
   if(mallow.fire>0){cx.globalCompositeOperation='lighter';const g=cx.createRadialGradient(tx,ty-10,0,tx,ty-10,26);g.addColorStop(0,'rgba(255,200,90,.9)');g.addColorStop(1,'rgba(255,90,20,0)');cx.fillStyle=g;cx.beginPath();cx.arc(tx,ty-10+Math.sin(t*20)*2,26,0,7);cx.fill();cx.globalCompositeOperation='source-over'}
