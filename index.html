@@ -31,7 +31,7 @@
   <div class="stat"><div id="tFire">불멍 0분 0초</div><div id="tMallow">먹은 마시멜로 0개</div><div id="tStar">본 별똥별 0개</div></div>
 </div>
 <div id="toast"></div>
-<div class="hint" id="hint">장작을 넣고 가만히 불을 바라보세요</div>
+<div class="hint" id="hint">장작을 넣고 가만히 불을 바라보세요 · 캠퍼를 누르면 인사해요</div>
 <div class="bar">
   <button id="bWood">🪵 장작 넣기</button>
   <button id="bMallow">🍡 마시멜로</button>
@@ -51,7 +51,7 @@ const save=()=>localStorage.setItem('byeolbit',JSON.stringify(store));
 // 산사처럼 들어오면 이름 하나를 받는다
 const A=['졸린','따뜻한','반짝이는','느긋한','조용한','포근한','말랑한','고요한'],B=['반딧불','장작','텐트','마시멜로','부엉이','솔방울','별빛','모닥불'];
 if(!store.name)store.name=A[Math.random()*A.length|0]+' '+B[Math.random()*B.length|0];
-document.getElementById('me').textContent=store.name+' 님, 어서 오세요';
+
 save();
 
 // ---------- 별 ----------
@@ -69,7 +69,7 @@ function makeTrees(){trees=[];let x=-30;while(x<W+40){const h=rnd(H*0.16,H*0.32)
 
 // ---------- 불 ----------
 let heat=0.55,flames=[],embers=[],flare=0;
-function addWood(){heat=Math.min(1.25,heat+0.35);flare=1;for(let i=0;i<40;i++)embers.push(newEmber(true));crackle(6);toast('타닥… 불이 살아나요')}
+function addWood(){me.warm=4;if(Math.random()<.5)say('따뜻해요~');heat=Math.min(1.25,heat+0.35);flare=1;for(let i=0;i<40;i++)embers.push(newEmber(true));crackle(6);toast('타닥… 불이 살아나요')}
 function newFlame(){const sp=20+heat*16;return{x:fireX+rnd(-sp,sp),y:fireY-4,vx:rnd(-.25,.25),vy:-rnd(1.1,2.1)*(0.6+heat*0.6),life:1,dec:rnd(.012,.024),r:rnd(9,18)*(0.6+heat*0.5)}}
 function newEmber(burst){return{x:fireX+rnd(-20,20),y:fireY-10,vx:rnd(-.6,.6)*(burst?2:1),vy:-rnd(.8,2.6)*(burst?1.6:1),life:1,dec:rnd(.004,.01)}}
 function drawFire(dt){
@@ -93,6 +93,72 @@ function drawFire(dt){
   cx.globalCompositeOperation='source-over';
 }
 
+// ---------- 캐릭터 ----------
+// 산사의 동자승처럼 들어오면 캠퍼 하나가 정해진다(곰·토끼·여우 중 하나, 모자 색도 무작위)
+const KINDS=[{k:'bear',n:'아기곰',fur:[150,104,70],in:[214,170,130]},{k:'rabbit',n:'아기토끼',fur:[236,230,222],in:[246,196,200]},{k:'fox',n:'아기여우',fur:[222,124,58],in:[250,236,220]}];
+const HATS=[[214,68,68],[70,120,200],[90,160,110],[230,170,60],[150,100,190]];
+if(store.kind==null){store.kind=Math.random()*KINDS.length|0;store.hat=Math.random()*HATS.length|0;save()}
+const me={warm:0,eat:0,wave:0,surprise:0,blink:0,say:'',sayT:0,x:0,y:0,s:1};
+const LINES=['불 따뜻하다…','오늘 하루도 수고했어요','별이 정말 많다','타닥타닥 소리 좋다','마시멜로 하나 더?','조용해서 좋아요','여기서 잠깐 쉬어 가요'];
+function say(m){me.say=m;me.sayT=3}
+function col(c,k=1){return `rgb(${c[0]*k|0},${c[1]*k|0},${c[2]*k|0})`}
+function drawMe(dt){
+  const K=KINDS[store.kind],hat=HATS[store.hat];
+  me.s=Math.max(0.8,Math.min(1.25,W/900+0.45));const s=me.s;
+  me.x=fireX+Math.min(150,W*0.26);me.y=groundY+44;
+  for(const k of['warm','eat','wave','surprise','sayT'])me[k]=Math.max(0,me[k]-dt);
+  me.blink-=dt;if(me.blink<-3.2)me.blink=0.12;
+  const x=me.x,y=me.y,sway=Math.sin(t*1.2)*1.5*s,look=skyT; // look: 0=불, 1=하늘
+  const lit=0.55+heat*0.35; // 불빛을 받는 정도
+  cx.save();cx.translate(x,y);cx.scale(s,s);
+  // 통나무 의자
+  cx.fillStyle='#3a2618';cx.beginPath();cx.ellipse(0,8,38,11,0,0,7);cx.fill();cx.fillStyle='#5a3b24';cx.beginPath();cx.ellipse(-36,8,6,10,0,0,7);cx.fill();
+  // 그림자 쪽(오른쪽)은 어둡게, 불 쪽(왼쪽)은 밝게
+  cx.translate(sway,0);
+  // 몸통 + 담요
+  cx.fillStyle=col(K.fur,lit);cx.beginPath();cx.ellipse(0,-22,26,28,0,0,7);cx.fill();
+  cx.fillStyle=col(hat,lit*0.85);cx.beginPath();cx.moveTo(-27,-30);cx.quadraticCurveTo(0,-44,27,-30);cx.lineTo(29,2);cx.quadraticCurveTo(0,10,-29,2);cx.closePath();cx.fill();
+  cx.strokeStyle=`rgba(255,255,255,${0.25*lit})`;cx.lineWidth=2;for(let i=-18;i<=18;i+=12){cx.beginPath();cx.moveTo(i,-34);cx.lineTo(i,4);cx.stroke()}
+  // 팔(불 쪽으로): 굽기 중이면 막대를 잡고, 장작 넣은 뒤엔 손을 쬔다, 인사면 흔든다
+  const armA=me.wave>0?-2.2+Math.sin(t*14)*0.4:mallow.on?-0.45:(me.warm>0||heat>0.9)?-0.15:0.5;
+  cx.save();cx.translate(-20,-28);cx.rotate(armA);cx.fillStyle=col(K.fur,lit);cx.beginPath();cx.ellipse(-14,0,15,7,0,0,7);cx.fill();cx.fillStyle=col(K.in,lit);cx.beginPath();cx.arc(-28,0,6,0,7);cx.fill();cx.restore();
+  me.hand=[x+sway*s+(-20+Math.cos(Math.PI+armA)*28)*s, y+(-28+Math.sin(Math.PI+armA)*28)*s];
+  // 머리
+  const hy=-62-look*4, tilt=-0.12-look*0.25+(me.eat>0?Math.sin(t*16)*0.05:0);
+  cx.save();cx.translate(0,hy);cx.rotate(tilt);
+  // 귀
+  cx.fillStyle=col(K.fur,lit);
+  if(K.k==='bear'){for(const ex of[-17,17]){cx.beginPath();cx.arc(ex,-20,8,0,7);cx.fill()}}
+  if(K.k==='rabbit'){for(const ex of[-9,9]){cx.save();cx.translate(ex,-26);cx.rotate(ex*0.02);cx.beginPath();cx.ellipse(0,-14,6,18,0,0,7);cx.fill();cx.fillStyle=col(K.in,lit);cx.beginPath();cx.ellipse(0,-14,3,12,0,0,7);cx.fill();cx.fillStyle=col(K.fur,lit);cx.restore()}}
+  if(K.k==='fox'){for(const sx of[-1,1]){cx.beginPath();cx.moveTo(sx*8,-22);cx.lineTo(sx*20,-40);cx.lineTo(sx*24,-14);cx.fill()}}
+  cx.beginPath();cx.ellipse(0,0,25,23,0,0,7);cx.fill();
+  // 털모자(곰·여우만, 토끼는 귀 때문에 귀마개 대신 목도리)
+  if(K.k!=='rabbit'){cx.fillStyle=col(hat,lit);cx.beginPath();cx.ellipse(0,-12,25,14,0,Math.PI,0);cx.fill();cx.fillRect(-25,-13,50,6);cx.fillStyle=col([250,250,245],lit);cx.beginPath();cx.arc(0,-28,6,0,7);cx.fill()}
+  // 얼굴: 주둥이·눈·볼
+  cx.fillStyle=col(K.in,lit);cx.beginPath();cx.ellipse(-4,8,11,8,0,0,7);cx.fill();
+  cx.fillStyle='#2a1c18';cx.beginPath();cx.arc(-5,5,2.6,0,7);cx.fill();
+  const ey=-1-look*3, ex0=-12-(1-look)*2;
+  cx.strokeStyle='#1d1412';cx.fillStyle='#1d1412';cx.lineWidth=2;
+  if(me.eat>0||me.wave>0){for(const ex of[ex0,ex0+15]){cx.beginPath();cx.arc(ex,ey+1,3.5,Math.PI*1.1,Math.PI*1.9);cx.stroke()}} // 웃는 눈 ^^
+  else if(me.surprise>0){for(const ex of[ex0,ex0+15]){cx.beginPath();cx.arc(ex,ey,3.6,0,7);cx.fill()}}
+  else if(me.blink>0){for(const ex of[ex0,ex0+15]){cx.beginPath();cx.moveTo(ex-3,ey);cx.lineTo(ex+3,ey);cx.stroke()}}
+  else{for(const ex of[ex0,ex0+15]){cx.beginPath();cx.arc(ex,ey,2.6,0,7);cx.fill();cx.fillStyle='#fff';cx.beginPath();cx.arc(ex+0.8,ey-0.9,0.9,0,7);cx.fill();cx.fillStyle='#1d1412'}}
+  // 입
+  cx.beginPath();if(me.surprise>0){cx.arc(-4,13,3,0,7);cx.stroke()}else if(me.eat>0){cx.arc(-4,12,3+Math.abs(Math.sin(t*16))*2,0,Math.PI);cx.stroke()}else{cx.arc(-4,11,3,0.1*Math.PI,0.9*Math.PI);cx.stroke()}
+  // 볼(불 앞이라 발그레)
+  cx.fillStyle=`rgba(255,120,110,${0.25+heat*0.25})`;for(const bx of[-17,10]){cx.beginPath();cx.ellipse(bx,6,4.5,3,0,0,7);cx.fill()}
+  cx.restore();
+  // 목도리(토끼)
+  if(K.k==='rabbit'){cx.fillStyle=col(hat,lit);cx.fillRect(-20,-44,40,8);cx.fillRect(8,-40,8,16)}
+  cx.restore();
+  // 이름표·말풍선
+  cx.fillStyle='rgba(243,233,210,.75)';cx.font='12px sans-serif';cx.textAlign='center';cx.fillText(K.n,x,y+30*s);
+  if(me.sayT>0){const a=Math.min(1,me.sayT*2);cx.font='13px sans-serif';const w=cx.measureText(me.say).width+20,bx=Math.min(W-w/2-6,Math.max(w/2+6,x)),by=y-118*s;
+    cx.fillStyle=`rgba(250,244,230,${0.92*a})`;cx.beginPath();cx.roundRect?cx.roundRect(bx-w/2,by-14,w,28,12):cx.rect(bx-w/2,by-14,w,28);cx.fill();
+    cx.beginPath();cx.moveTo(x-6,by+13);cx.lineTo(x,by+22);cx.lineTo(x+6,by+13);cx.fill();
+    cx.fillStyle=`rgba(40,30,30,${a})`;cx.fillText(me.say,bx,by+5)}
+}
+
 // ---------- 마시멜로 ----------
 const mallow={on:false,hold:false,pos:0,toast:0,burnt:false,fire:0};
 const LV=[[0,'하얀 마시멜로',[250,246,236]],[0.25,'살짝 노릇',[238,214,160]],[0.5,'황금빛 ✨',[214,160,70]],[0.75,'진한 갈색',[140,84,40]],[0.95,'탔어요…',[40,28,22]]];
@@ -100,9 +166,9 @@ function mallowLevel(){let l=LV[0];for(const v of LV)if(mallow.toast>=v[0])l=v;r
 function drawMallow(dt){
   if(!mallow.on)return;
   mallow.pos+=((mallow.hold?1:0)-mallow.pos)*Math.min(1,dt*5);
-  if(mallow.hold&&!mallow.burnt){mallow.toast+=dt*(0.05+heat*0.07);if(mallow.toast>=0.95){mallow.burnt=true;mallow.fire=2.5;toast('앗, 불이 붙었어요! 손을 떼서 꺼 주세요')}}
+  if(mallow.hold&&!mallow.burnt){mallow.toast+=dt*(0.05+heat*0.07);if(mallow.toast>=0.95){mallow.burnt=true;mallow.fire=2.5;me.surprise=2;toast('앗, 불이 붙었어요! 손을 떼서 꺼 주세요')}}
   if(mallow.fire>0&&!mallow.hold)mallow.fire-=dt*2;
-  const hx=W*0.86,hy=H*0.92,tx=fireX+50-mallow.pos*40,ty=fireY-70-(1-mallow.pos)*80+Math.sin(t*1.3)*2;
+  const [hx,hy]=me.hand||[W*0.86,H*0.92],tx=fireX+50-mallow.pos*40,ty=fireY-70-(1-mallow.pos)*80+Math.sin(t*1.3)*2;
   cx.strokeStyle='#8a6a48';cx.lineWidth=3;cx.beginPath();cx.moveTo(hx,hy);cx.lineTo(tx+14,ty);cx.stroke();
   const [,,c]=mallowLevel();cx.fillStyle=`rgb(${c})`;cx.beginPath();cx.roundRect?cx.roundRect(tx-14,ty-11,28,22,7):cx.rect(tx-14,ty-11,28,22);cx.fill();
   if(mallow.toast>0.25&&!mallow.burnt){cx.fillStyle='rgba(255,220,150,.35)';cx.fillRect(tx-12,ty-9,8,5)}
@@ -110,7 +176,7 @@ function drawMallow(dt){
   cx.fillStyle='rgba(243,233,210,.9)';cx.font='13px sans-serif';cx.textAlign='center';cx.fillText(mallowLevel()[1],tx,ty-24);
 }
 function eatMallow(){
-  const l=mallowLevel()[1];store.mallows++;save();
+  const l=mallowLevel()[1];store.mallows++;save();me.eat=1.6;
   toast(mallow.burnt?'바삭… 쓴맛도 추억이에요':mallow.toast>=0.5&&mallow.toast<0.75?'황금빛 마시멜로! 완벽해요':'냠, 달콤해요');
   Object.assign(mallow,{toast:0,burnt:false,fire:0});
 }
@@ -140,8 +206,6 @@ function drawGround(){
   // 텐트
   const tx=W*0.2,tw=Math.min(170,W*0.3),th=tw*0.75;cx.fillStyle=`rgb(${40+heat*30|0},${32+heat*16|0},${36})`;cx.beginPath();cx.moveTo(tx-tw/2,groundY+30);cx.lineTo(tx,groundY+30-th);cx.lineTo(tx+tw/2,groundY+30);cx.fill();
   cx.fillStyle='rgba(255,190,110,.25)';cx.beginPath();cx.moveTo(tx-tw*0.14,groundY+30);cx.lineTo(tx,groundY+30-th*0.55);cx.lineTo(tx+tw*0.14,groundY+30);cx.fill();
-  // 의자에 앉은 나
-  const px=W*0.73,py=groundY+50;cx.fillStyle='#120f16';cx.beginPath();cx.arc(px,py-52,13,0,7);cx.fill();cx.fillRect(px-14,py-40,28,36);cx.fillRect(px-22,py-6,44,6);
 }
 
 // ---------- 소리(내장 합성, 외부 파일 없음) ----------
@@ -160,23 +224,25 @@ const $=id=>document.getElementById(id);
 let toastTimer;function toast(m){const e=$('toast');e.textContent=m;e.style.opacity=1;clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.style.opacity=0,2200)}
 $('bWood').onclick=addWood;
 $('bMallow').onclick=()=>{mallow.on=!mallow.on;$('bMallow').classList.toggle('on',mallow.on);$('hint').textContent=mallow.on?'화면을 누르고 있으면 불 가까이 굽고, 떼면 빼요 · 두 번 톡 치면 먹기':'장작을 넣고 가만히 불을 바라보세요'};
-$('bStar').onclick=()=>{skyMode=!skyMode;$('bStar').classList.toggle('on',skyMode);$('hint').textContent=skyMode?'별똥별이 지나가면 눌러서 소원을 빌어 보세요':'장작을 넣고 가만히 불을 바라보세요';if(skyMode)toast('11월 저녁 하늘 — 카시오페아·페가수스·북두칠성')};
+$('bStar').onclick=()=>{skyMode=!skyMode;$('bStar').classList.toggle('on',skyMode);$('hint').textContent=skyMode?'별똥별이 지나가면 눌러서 소원을 빌어 보세요':'장작을 넣고 가만히 불을 바라보세요';if(skyMode){toast('11월 저녁 하늘 — 카시오페아·페가수스·북두칠성');say('와, 별이다…')}};
 $('bSound').onclick=()=>{if(!ac)initAudio();soundOn=!soundOn;ac.resume();master.gain.setTargetAtTime(soundOn?0.8:0,ac.currentTime,0.3);$('bSound').textContent=soundOn?'🔊 소리':'🔇 소리';$('bSound').classList.toggle('on',soundOn)};
 let lastTap=0;
 cv.addEventListener('pointerdown',e=>{
+  if(Math.hypot(e.clientX-me.x,e.clientY-(me.y-50*me.s))<55*me.s){me.wave=1.6;say(LINES[Math.random()*LINES.length|0]);return}
   if(skyMode){for(const s of shoots){if(!s.hit&&Math.hypot(e.clientX-s.x,e.clientY-s.y)<70){s.hit=true;store.shooting++;save();$('wish').style.display='flex';$('wishText').value='';setTimeout(()=>$('wishText').focus(),50);return}}}
   if(mallow.on){const now=Date.now();if(now-lastTap<300){eatMallow();mallow.hold=false;lastTap=0;return}lastTap=now;mallow.hold=true}
 });
 addEventListener('pointerup',()=>mallow.hold=false);
-$('wishOk').onclick=()=>{const v=$('wishText').value.trim();if(v){store.wishes.push({w:v,d:new Date().toISOString().slice(0,10)});save()}$('wish').style.display='none';toast(v?'소원이 별에 닿았어요 ✨':'마음속으로 빌었어요')};
+$('wishOk').onclick=()=>{const v=$('wishText').value.trim();if(v){store.wishes.push({w:v,d:new Date().toISOString().slice(0,10)});save()}$('wish').style.display='none';toast(v?'소원이 별에 닿았어요 ✨':'마음속으로 빌었어요');me.wave=1.5};
 
 // ---------- 루프 ----------
 let t=0,last=performance.now();
 function loop(now){const dt=Math.min(0.05,(now-last)/1000);last=now;t+=dt;store.fireSec+=dt;
-  cx.clearRect(0,0,W,H);drawSky(dt);drawGround();drawFire(dt);drawMallow(dt);
+  cx.clearRect(0,0,W,H);drawSky(dt);drawGround();drawFire(dt);drawMe(dt);drawMallow(dt);
   if((t|0)%2===0){const s=store.fireSec|0;$('tFire').textContent=`불멍 ${s/60|0}분 ${s%60}초`;$('tMallow').textContent=`먹은 마시멜로 ${store.mallows}개`;$('tStar').textContent=`본 별똥별 ${store.shooting}개`}
   requestAnimationFrame(loop)}
 setInterval(save,5000);
+document.getElementById('me').textContent=store.name+' 님, 어서 오세요';setTimeout(()=>say('어서 와요, 같이 불 쬐어요'),900);
 addEventListener('resize',resize);resize();requestAnimationFrame(loop);
 })();
 </script>
